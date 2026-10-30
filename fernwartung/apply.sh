@@ -25,6 +25,13 @@ replace src/common.rs '"https://admin.rustdesk.com".to_owned()' "\"$API_SERVER\"
 # Application name used at runtime (window title, config folder, service, install path)
 replace libs/hbb_common/src/config.rs 'RwLock::new("RustDesk".to_owned())' "RwLock::new(\"$APP_NAME\".to_owned())"
 
+# No update checks: they would offer or auto-install the stock RustDesk client
+replace src/common.rs 'pub async fn do_check_software_update() -> hbb_common::ResultType<()> {' 'pub async fn do_check_software_update() -> hbb_common::ResultType<()> {
+    if is_custom_client() {
+        *SOFTWARE_UPDATE_URL.lock().unwrap() = "".to_string();
+        return Ok(());
+    }'
+
 # File properties of the executables
 for f in Cargo.toml libs/portable/Cargo.toml; do
   replace "$f" 'ProductName = "RustDesk"' "ProductName = \"$APP_NAME\""
