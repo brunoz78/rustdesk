@@ -7,6 +7,12 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 source fernwartung/settings.env
 
+# Build variant, set by the workflow matrix:
+#   VARIANT_EXE    executable name without .exe (default: EXE_NAME)
+#   INCOMING_ONLY  1 = small window that can only be controlled, not control others
+EXE_NAME="${VARIANT_EXE:-$EXE_NAME}"
+INCOMING_ONLY="${INCOMING_ONLY:-0}"
+
 replace() {
   local file="$1" from="$2" to="$3"
   if ! grep -qF -- "$from" "$file"; then
@@ -35,6 +41,11 @@ replace src/common.rs 'pub async fn do_check_software_update() -> hbb_common::Re
 # No "set up your own server" hint: the own server is built in
 replace flutter/lib/desktop/pages/connection_page.dart 'if (!isIncomingOnly) setupServerWidget(),' '// if (!isIncomingOnly) setupServerWidget(),'
 
+# Incoming-only variant: compact window with ID and password only
+if [ "$INCOMING_ONLY" = "1" ]; then
+  replace libs/hbb_common/src/config.rs '.map_or(false, |x| x == ("incoming"))' '.map_or(true, |x| x != ("outgoing"))'
+fi
+
 # File properties of the executables
 for f in Cargo.toml libs/portable/Cargo.toml; do
   replace "$f" 'ProductName = "RustDesk"' "ProductName = \"$APP_NAME\""
@@ -62,5 +73,13 @@ if [ -f fernwartung/icon.png ]; then
   cp res/icon.ico flutter/windows/runner/resources/app_icon.ico
   echo "own logo applied"
 fi
+
+# Optional wide logo above ID and password (max 300x60 shown, 600x120 recommended)
+for f in logo.png logo_dark.png logo_light.png; do
+  if [ -f "fernwartung/$f" ]; then
+    cp "fernwartung/$f" "flutter/assets/$f"
+    echo "wide logo applied: $f"
+  fi
+done
 
 echo "Fernwartung settings applied: $APP_NAME -> $RENDEZVOUS_SERVER"

@@ -34,9 +34,20 @@ jobs:
       target_version: Windows10
 
   build-windows:
-    name: Fernwartung x64
+    name: ${{ matrix.variant.exe }}
     needs: [build-RustDeskTempTopMostWindow, generate-bridge]
     runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        variant:
+          # for the people being supported: compact window, can only be controlled
+          - { exe: Fernwartung, incoming-only: "1" }
+          # for the supporter: full window, can control others
+          - { exe: Fernwartung-Admin, incoming-only: "0" }
+    env:
+      VARIANT_EXE: ${{ matrix.variant.exe }}
+      INCOMING_ONLY: ${{ matrix.variant.incoming-only }}
     steps:
       - name: Export GitHub Actions cache environment variables
         uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410 # v6
@@ -174,27 +185,24 @@ jobs:
 
       - name: Rename main executable
         shell: bash
-        run: |
-          source fernwartung/settings.env
-          mv ./rustdesk/rustdesk.exe "./rustdesk/$EXE_NAME.exe"
+        run: mv ./rustdesk/rustdesk.exe "./rustdesk/$VARIANT_EXE.exe"
 
       - name: Build self-extracted executable
         shell: bash
         run: |
-          source fernwartung/settings.env
           sed -i '/dpiAware/d' res/manifest.xml
           pushd ./libs/portable
           pip3 install -r requirements.txt
-          python3 ./generate.py -f ../../rustdesk/ -o . -e "../../rustdesk/$EXE_NAME.exe"
+          python3 ./generate.py -f ../../rustdesk/ -o . -e "../../rustdesk/$VARIANT_EXE.exe"
           popd
           mkdir -p ./SignOutput
-          mv ./target/release/rustdesk-portable-packer.exe "./SignOutput/$EXE_NAME.exe"
+          mv ./target/release/rustdesk-portable-packer.exe "./SignOutput/$VARIANT_EXE.exe"
           sha256sum ./SignOutput/*.exe
 
       - name: Upload executable
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: fernwartung-windows-x64
+          name: ${{ matrix.variant.exe }}-windows-x64
           path: ./SignOutput/*.exe
 
       - name: Remove previous executable from release
@@ -202,13 +210,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          source fernwartung/settings.env
-          gh release delete-asset "fernwartung-${{ env.VERSION }}" "$EXE_NAME.exe" -R "${{ github.repository }}" -y || true
+          gh release delete-asset "fernwartung-${{ env.VERSION }}" "$VARIANT_EXE.exe" -R "${{ github.repository }}" -y || true
 
       - name: Publish Release
         uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
         with:
           tag_name: fernwartung-${{ env.VERSION }}
           name: Fernwartung ${{ env.VERSION }}
-          body: Fernwartungs-Client für Windows (x64), fest verbunden mit dem eigenen Server.
+          body: |
+            Fernwartungs-Client für Windows (x64), fest verbunden mit dem eigenen Server.
+            - Fernwartung.exe: für Anwender, kleines Fenster mit ID und Passwort
+            - Fernwartung-Admin.exe: für den Support, zum Verbinden auf andere Rechner
           files: ./SignOutput/*.exe
