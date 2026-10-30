@@ -41,9 +41,11 @@ replace src/common.rs 'pub async fn do_check_software_update() -> hbb_common::Re
 # No "set up your own server" hint: the own server is built in
 replace flutter/lib/desktop/pages/connection_page.dart 'if (!isIncomingOnly) setupServerWidget(),' '// if (!isIncomingOnly) setupServerWidget(),'
 
-# Incoming-only variant: compact window with ID and password only
+# Incoming-only variant: compact window with ID and password only,
+# runs without installation (no "Install" card)
 if [ "$INCOMING_ONLY" = "1" ]; then
   replace libs/hbb_common/src/config.rs '.map_or(false, |x| x == ("incoming"))' '.map_or(true, |x| x != ("outgoing"))'
+  replace libs/hbb_common/src/config.rs 'is_some_hard_opton("disable-installation")' 'is_incoming_only() || is_some_hard_opton("disable-installation")'
 fi
 
 # File properties of the executables
