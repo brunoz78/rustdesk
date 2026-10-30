@@ -32,6 +32,9 @@ replace src/common.rs 'pub async fn do_check_software_update() -> hbb_common::Re
         return Ok(());
     }'
 
+# No "set up your own server" hint: the own server is built in
+replace flutter/lib/desktop/pages/connection_page.dart 'if (!isIncomingOnly) setupServerWidget(),' '// if (!isIncomingOnly) setupServerWidget(),'
+
 # File properties of the executables
 for f in Cargo.toml libs/portable/Cargo.toml; do
   replace "$f" 'ProductName = "RustDesk"' "ProductName = \"$APP_NAME\""
