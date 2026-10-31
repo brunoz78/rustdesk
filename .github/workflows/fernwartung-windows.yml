@@ -10,7 +10,7 @@ on:
       - "fernwartung-*"
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   SCITER_RUST_VERSION: "1.75"
@@ -199,26 +199,10 @@ jobs:
           mv ./target/release/rustdesk-portable-packer.exe "./SignOutput/$VARIANT_EXE.exe"
           sha256sum ./SignOutput/*.exe
 
+      # No public release: the executables are distributed from an own server
       - name: Upload executable
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ matrix.variant.exe }}-windows-x64
           path: ./SignOutput/*.exe
-
-      - name: Remove previous executable from release
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release delete-asset "fernwartung-${{ env.VERSION }}" "$VARIANT_EXE.exe" -R "${{ github.repository }}" -y || true
-
-      - name: Publish Release
-        uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
-        with:
-          tag_name: fernwartung-${{ env.VERSION }}
-          name: Fernwartung ${{ env.VERSION }}
-          body: |
-            Fernwartungs-Client für Windows (x64), fest verbunden mit dem eigenen Server.
-            - Fernwartung.exe: für Anwender, kleines Fenster mit ID und Passwort
-            - Fernwartung-Admin.exe: für den Support, zum Verbinden auf andere Rechner
-          files: ./SignOutput/*.exe
+          retention-days: 7
