@@ -5,12 +5,9 @@ name: Fernwartung Windows client
 
 on:
   workflow_dispatch:
-  push:
-    tags:
-      - "fernwartung-*"
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   SCITER_RUST_VERSION: "1.75"
@@ -199,10 +196,27 @@ jobs:
           mv ./target/release/rustdesk-portable-packer.exe "./SignOutput/$VARIANT_EXE.exe"
           sha256sum ./SignOutput/*.exe
 
-      # No public release: the executables are distributed from an own server
       - name: Upload executable
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ matrix.variant.exe }}-windows-x64
           path: ./SignOutput/*.exe
           retention-days: 7
+
+      # Only the incoming-only client is published, so it can be downloaded from
+      # .../releases/latest/download/Fernwartung.exe. The admin client stays an artifact.
+      - name: Publish release
+        if: matrix.variant.incoming-only == '1'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="fernwartung-${{ env.VERSION }}"
+          if gh release view "$tag" -R "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release upload "$tag" "./SignOutput/$VARIANT_EXE.exe" --clobber -R "${{ github.repository }}"
+          else
+            gh release create "$tag" "./SignOutput/$VARIANT_EXE.exe" --target "${{ github.sha }}" --latest \
+              --title "Fernwartung ${{ env.VERSION }}" \
+              --notes "Fernwartungs-Client für Windows (x64), fest verbunden mit dem eigenen Server." \
+              -R "${{ github.repository }}"
+          fi
